@@ -5,6 +5,7 @@ import os
 import asyncio
 import json
 import pathlib
+import time
 
 from winsdk.windows.media.ocr import OcrEngine
 from winsdk.windows.globalization import Language
@@ -50,20 +51,15 @@ class ResultDatabaseBaseclass:
 # -----------------------------------------
 
 # JSON File database Backend
+# TODO: Write multiple versions - one with full (raw) data, and one with text only?
 class JsonResultDatabase(ResultDatabaseBaseclass):
 	# ctor
-	def __init__(self,
-	             db_fileN: str,
-	             progressive_saves=True):
+	def __init__(self, db_fileN: str):
 		# Add extension to the given filename + store it
 		self.db_fileN = db_fileN + ".json"
 		
 		# Cache of the final dict to write...
 		self._data = {}
-		
-		# Flush as we go>
-		# (Enabled by default to avoid data loss)
-		self.progressive_saves = progressive_saves
 		
 	# Store results for file to the database
 	# :: ResultDatabaseBaseClass.add_result()
@@ -75,16 +71,11 @@ class JsonResultDatabase(ResultDatabaseBaseclass):
 		
 		# Save the data to the dict
 		self._data[key] = data
-		
-		# Flush, if doing progressive saves...
-		if self.progressive_saves:
-			self.flush()
 	
 	# Ensure all results have been flushed to the backing file...
 	def flush(self):
 		with open(self.db_fileN, 'w') as f:
-			json_data_str = json.dumps(self._data, indent='\t')
-			f.write(json_data_str)
+			json.dump(self._data, f, indent='\t')
 
 # -----------------------------------------
 
@@ -210,16 +201,37 @@ def main():
 	print("DB Filename = '%s'" % (db.db_fileN))
 	
 	# Walk that directory tree, processing the images...
+	# TODO: Switch to multi-processing approach to be faster?
 	print("\n> Extracting text from images in folder...")
+	
+	start_time = time.time()
+	i = 0
+	
 	for (base_path, filename, filepath) in file_walker(root_path):
+		# Report progress occasionally...
+		if (i > 0) and (i % 500 == 0):
+			elapsed_time = time.time() - start_time
+			print("... %d files processed so far, after %.3f sec" % (i, elapsed_time))
+			
+			db.flush()   # flush so we don't lose everything...
+		
 		# Process file...
 		# TODO: Skip processing on files already in the DB unless the hash signature changed
+		# TODO: Skip file if it cannot be found now (i.e. it was moved before the processing happened)
 		result = run_ocr_on_image(filepath)
 		db.add_result(filepath, result)
+		
+		# Increment progress counter...
+		i += 1
 	
 	# Do a final flush
 	print("\n> Processing done. Saving results to file...")
 	db.flush()
+	
+	# Report total time taken
+	end_time = time.time()
+	time_taken_sec = end_time - start_time
+	print("\n>> Time Taken = %.3f sec" % (time_taken_sec))
 
 # -----------------------------------------
 
