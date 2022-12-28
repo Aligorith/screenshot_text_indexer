@@ -6,8 +6,10 @@ import asyncio
 import json
 import pathlib
 
-from PIL import Image
-import winocr
+from winsdk.windows.media.ocr import OcrEngine
+from winsdk.windows.globalization import Language
+from winsdk.windows.storage import FileAccessMode, StorageFile
+from winsdk.windows.graphics.imaging import BitmapDecoder, BitmapPixelFormat
 
 ###########################################
 # Constants
@@ -26,7 +28,7 @@ SUPPORTED_FILE_FORMATS = {
 	#'.gif',
 	'.tif',
 	'.tiff',
-	'.webm',
+	'.webp',
 	'.bmp',
 }
 
@@ -93,32 +95,57 @@ class SqlResultDatabase(ResultDatabaseBaseclass):
 ###########################################
 # Image Processor
 
+# Helper Utilities (from winocr) ----------
+
+# Needed to get asyncio to run the async code to be runnable...
+async def await_coroutine_result(awaitable):
+	return await awaitable
+
+# Convert wrapped Windows-SDK return objects as Python dicts,
+# to make them easier to work with...
+#
+# From winocr.py
+def picklify(o):
+	if hasattr(o, 'size'):
+		return [picklify(e) for e in o]
+	elif hasattr(o, '__module__'):
+		return dict([(n, picklify(getattr(o, n))) for n in dir(o) if not n.startswith('_')])
+	else:
+		return o
+
+# -----------------------------------------
+
 # < fileN: (str) Filepath of image to extra text from
-# < lang: (str | [str]) String ID for language-processing backend to use
-#                       or list of languages to use.
+# < lang: (str) String ID for language-processing backend to use
 #
 # More info about the languages supported:
 # https://learn.microsoft.com/en-us/windows/uwp/app-resources/how-rms-matches-lang-tags         
 def run_ocr_on_image(fileN: str, lang='en'):
-	try:
-		img = Image.open(fileN)
-	except IOError as err:
-		print("ERROR: Could not load '%s' as image for processing..." % (fileN))
-		return {}
+	# Adapted from `https://github.com/8/ConsoleUwpOcr -> "Program.cs"`
+	async def _run_winsdk_ops():
+		filePath = os.path.abspath(fileN)   # winsdk needs absolute paths only...
+		
+		file = await StorageFile.get_file_from_path_async(filePath);
+		stream = await file.open_async(FileAccessMode.READ);
+		decoder = await BitmapDecoder.create_async(stream);
+		softwareBitmap = await decoder.get_software_bitmap_async();
+		
+		# TODO: Modify this part to create a dict that contains multiple language results...
+		engine = OcrEngine.try_create_from_language(Language(lang))
+		return await engine.recognize_async(softwareBitmap)
 	
-	# For multiple languages, construct a dict for each language...
-	# FIXME: `windows.storage.streams.DataWriter :: .write_bytes()` crashes
-	#        when passing it data from full-sized screenshots...
-	if type(lang) is str:
-		print("processing '%s'" % fileN)
-		result = winocr.recognize_pil_sync(img, lang)
-		print("file done...")
-	else:
-		result = {
-			lang_key : winocr.recognize_pil_sync(img, lang_key)
-			for lang_key in lang
-		}
 	
+	# Run the helper method, which runs asynchronously...
+	result_obj = asyncio.run(await_coroutine_result( _run_winsdk_ops() ))
+	
+	# Turn it into a plain Python dict, so we can dump the data for debugging/saving
+	# much easier...
+	result = picklify(result_obj)
+	
+	#print(result_obj.text)
+	#pprint(result)
+	
+	# Return the result dict
 	return result
 
 ###########################################

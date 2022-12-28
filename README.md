@@ -19,7 +19,7 @@ It has several modes of operation:
 
 * Windows 10+
 * Python 3.7+
-* WinOCR Package (https://pypi.org/project/winocr/)
+* Windows SDK PIP Library (i.e. "winsdk")
 
 ## Language Support
 
@@ -28,11 +28,4 @@ when running this software.
 
 For instructions on installing these, see:
 * https://docs.uipath.com/studio/docs/installing-ocr-languages#section-installing-an-ocr-engine-and-changing-the-language
-
-
-## Status
-
-Currently abandoned, as winocr crashes when running on the first real screenshot in that folder.
-Seems to be related to the `DataWriter.write_bytes()` call silently crashing out. Dunno why yet,
-or how we can fix that...
 

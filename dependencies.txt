@@ -1,5 +1,5 @@
-# Wrapper for "windows.media.ocr" API's that do all the OCR grunt work
-winocr >= 0.0.13
+# Package to directly access the Windows SDK
+winsdk >= 1.0.0b7
 
 # PILLOW - For reading the image data
 pillow >= 9.2.0
