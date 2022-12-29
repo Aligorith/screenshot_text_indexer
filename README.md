@@ -9,12 +9,6 @@ All this is designed to run fully offline / locally, on Windows 10 machines. Sup
 the indexing on Linux (using a different OCR engine) is left as an exercise for the user.
 
 
-## Design Philosophy
-
-Get something working ASAP for my own needs, that works on my machine (and hopefully others too),
-and have some fun building it.
-
-
 ## Utilities
 
 * **`py_indexer`** - A Python 3 script that uses the Windows 10 built-in OCR Engine to perform
@@ -31,6 +25,51 @@ and have some fun building it.
   1) Extracting only the text in a certain area (for extracting values from standardised UI forms), OR
   2) Excluding all the text from certain areas from search results (e.g. for excluding browser quick-link
      toolbar labels from the results, to prevent false-positives)
+
+
+## Performance Notes
+
+On the main folder where this tool was intended to be used:
+* The folder had about 15,000 files
+* The Python indexing script took around > 5200 seconds to process that folder (single threaded mode)
+* The resulting index file was around 630 mb
+* The `rust_search_cli` tool takes about 35 seconds to load + parse the index file
+
+
+## Design Philosophy
+
+Get something working ASAP for my own needs, that works on my machine (and hopefully others too),
+and have some fun building it.
+
+### Tech Stack FAQ's
+
+The Windows 10 built-in OCR Engine was chosen for the following reasons:
+* It is "freely" available on my workstation, and runs offline (without needing to upload images
+  to some web host), at least from what I can tell.
+  
+* In tests on a few images, it did a good job at accurately extracting the text from the screenshots
+  and ran quite quickly (i.e. almost instantly, at least from Microsoft's C#-based UWP sample app).
+  
+* The alternative free / open source engines I tried (e.g. Tessaract and GOCR in particular IIRC)
+  were not able to cope with the images I needed them to process. Those two in particular appear to
+  be rather old-school (80's / 90's libs) that only work on scanned PDF documents, and not so much on
+  screenshots (and in particular, completely failing in cases where there is text overlaid over a photo)
+
+
+Getting this API working however was not straightforward. Several prior attempts failed:
+* **`https://github.com/8/ConsoleUwpOcr`** - Initial attempts to get this C#-based command-line "desktop" app
+  resulted in failure, Despite multiple attempts, I couldn't figure out how to resolve the compiler errors
+  about not being able to find the relevant `windows.media.ocr` API's, despite installing / reinstalling
+  all the different versions of `UwpDesktop`, `UwpDesktop-Updated`, `Microsoft.Windows.SDK.Contracts`, and/or
+  upgrading Visual Studio from 2017 to 2022.
+
+* **[winocr](https://github.com/GitHub30/winocr)** - This Python / PIP package was initially promising,
+  but kept silently crashing in `DataWriter.write_bytes()` when passing it an actual screenshot image
+  (vs a small partial test screenshot snippet).
+
+As a result, our Python script just uses the Windows SDK library / API directly, using code adapted from
+the ConsoleUwpOcr code.
+
 
 
 ## License
