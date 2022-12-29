@@ -2,16 +2,18 @@ Screenshot Text Indexer
 =======================
 
 A small summer-holiday project to hack together some utilities for indexing and searching through
-a collection of a large collection of screenshot images, using OCR to scrape the text from the
-often text-heavy screenshots (e.g. web page contents, window titles, UI labels, etc.)
+a few large collections of screenshots, using OCR to scrape the text from the often
+text-heavy images (e.g. articles, social media posts, window titles, UI labels, etc.)
 
 All this is designed to run fully offline / locally, on Windows 10 machines. Support for performing
 the indexing on Linux (using a different OCR engine) is left as an exercise for the user.
+
 
 ## Design Philosophy
 
 Get something working ASAP for my own needs, that works on my machine (and hopefully others too),
 and have some fun building it.
+
 
 ## Utilities
 
@@ -30,21 +32,24 @@ and have some fun building it.
   2) Excluding all the text from certain areas from search results (e.g. for excluding browser quick-link
      toolbar labels from the results, to prevent false-positives)
 
+
 ## License
 
 * Free to use / modify / adapt for personal + small business task-automation use.
 
-* Not for use by government agencies and/or firms involved in intelligence gathering,
-  ad-targetting, surveillance, espionage, and/or similar activities.
+* NOT for use by government agencies, firms, and/or individuals involved in intelligence gathering,
+  ad-targetting, surveillance, espionage, and/or similar activities - especially for those purposes.
 
-* Use for training, running, or testing AI services (including but not limited to text-generation
-  services such as Co-Pilot, ChatGPT, or flavour-of-the-month auto-complete) is generally NOT allowed.
+* NOT for use for training, running, or testing AI services (including but not limited to text-generation
+  services such as Co-Pilot, ChatGPT, or flavour-of-the-month auto-complete / content generation tools).
   
   An exception is made however for use in the development of improved OCR engines and/or language
   translation services (but only to natural human languages. Translations to machine-language /
   programming-language to circumvent the No AI restrictions are NOT allowed).
  
-* No warranty / fitness for purpose / or liabilities are implied or claimed. The author(s) are not
-  to be held liable or responsible for any consequences arising from this code.
+* NO warranty / fitness for purpose / or liabilities are implied or claimed. The author(s) are not
+  to be held liable or responsible for any consequences arising from this code/software.
+  
+  Usage of this code/software implies that you accept and understand all the risks.
 
 
