@@ -98,6 +98,12 @@ fn find_term(text_index: &ImagesTextIndex,
 		}
 	}
 	
+	// Perform natural sort on these, so they appear in an organised way,
+	// instead of in random hash/thread-traversal order
+	matching_filenames.sort_unstable_by(|a, b| {
+		lexical_sort::natural_lexical_cmp(&a, &b)
+	});
+	
 	return matching_filenames;
 }
 
