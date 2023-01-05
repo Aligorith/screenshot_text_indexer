@@ -311,17 +311,25 @@ impl Sandbox for SearchGuiState {
 		// LHS: Search Panel - Search Matches List
 		// TODO: Wrap in scrollable
 		let matches_box = column(
-			// Populate search-match list with view delegates for each match
-			self.search_matches
-				.iter()
-				.enumerate()
-				.map(|(i, img_match)| {
-					img_match.view(i).map(move |message| {
-						Message::SearchMatchMessage(i)
+				// Populate search-match list with view delegates for each match
+				self.search_matches
+					.iter()
+					.enumerate()
+					.map(|(i, img_match)| {
+						img_match.view(i).map(move |message| {
+							Message::SearchMatchMessage(i)
+						})
 					})
-				})
-				.collect()
-		).spacing(5);
+					.collect()
+			).spacing(5);
+		
+		// LHS: Search Panel - Putting it all together
+		let search_panel = column!(
+				search_box,
+				matches_box,
+			)
+			.width(Length::Units(300))
+			.spacing(10);
 		
 		// RHS: Matching Image Panel
 		// See pokedex
@@ -346,13 +354,7 @@ impl Sandbox for SearchGuiState {
 		// Overall Layout - 2 panel horizontal split
 		// TODO: Adjustable Splitter -> Use PaneGrid?
 		row!(
-			column!(
-				search_box,
-				matches_box,
-			)
-			.width(Length::Units(300))
-			.spacing(10),
-			
+			search_panel,
 			image_panel,
 		).into()
 	}
