@@ -1,0 +1,17 @@
+[package]
+name = "rust-search_gui"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+iced = { version = "0.6", features = ["image"] }
+once_cell = "1.15"
+
+serde = "1.0"
+serde_json = "1.0"
+serde_derive = "1.0"
+
+lexical-sort = "0.3.1"
+rfd = "0.10.0"
