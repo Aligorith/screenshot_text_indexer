@@ -21,9 +21,7 @@ use iced::theme::{self, Theme};
 use iced::widget::{
 	self,
 	button, column, container, image, row,
-	text, text_input,
-	
-	Scrollable,
+	scrollable, text, text_input,
 };
 use iced::window;
 
@@ -309,19 +307,35 @@ impl Sandbox for SearchGuiState {
 			.on_submit(Message::TriggerSearch);
 		
 		// LHS: Search Panel - Search Matches List
-		// TODO: Wrap in scrollable
-		let matches_box = column(
+		let matches_box: Element<_> = 
+			if !self.search_matches.is_empty() {
 				// Populate search-match list with view delegates for each match
-				self.search_matches
-					.iter()
-					.enumerate()
-					.map(|(i, img_match)| {
-						img_match.view(i).map(move |message| {
-							Message::SearchMatchMessage(i)
-						})
-					})
-					.collect()
-			).spacing(5);
+				// and put that in a scrollable
+				scrollable(
+					container(
+						column(
+							self.search_matches
+								.iter()
+								.enumerate()
+								.map(|(i, img_match)| {
+									img_match.view(i).map(move |message| {
+										Message::SearchMatchMessage(i)
+									})
+								})
+								.collect()
+						)
+						.spacing(5)
+					)
+					.width(Length::Fill)
+					.padding(40)
+					.center_x(),
+				)
+				.into()
+			}
+			else {
+				// Placeholder
+				empty_message("No matching images")
+			};
 		
 		// LHS: Search Panel - Putting it all together
 		let search_panel = column!(
@@ -346,17 +360,18 @@ impl Sandbox for SearchGuiState {
 			}
 			None => {
 				// Placeholder
-				// TOOD: Use `container` instead?   todo.rs:464 (make_empty_message())
 				empty_message("Select an image match to see it here...")
 			}
 		};
 		
 		// Overall Layout - 2 panel horizontal split
 		// TODO: Adjustable Splitter -> Use PaneGrid?
+		// TODO: How to enable .explain()?
 		row!(
 			search_panel,
 			image_panel,
-		).into()
+		)
+		.into()
 	}
 }
 
