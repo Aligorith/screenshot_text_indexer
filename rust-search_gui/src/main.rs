@@ -342,17 +342,25 @@ impl Sandbox for SearchGui {
 	
 	fn view(&self) -> Element<Message>
 	{
-		match self.app_state {
-			SearchGuiState::FindIndexDb => {
-				self.view_find_db_prompt()
-			}
-			SearchGuiState::LoadingIndex => {
-				self.view_index_loading_ui()
-			}
-			SearchGuiState::SearchTask => {
-				self.view_search_ui()	
-			}
-		}
+		let content =
+			match self.app_state {
+				SearchGuiState::FindIndexDb => {
+					self.view_find_db_prompt()
+				}
+				SearchGuiState::LoadingIndex => {
+					self.view_index_loading_ui()
+				}
+				SearchGuiState::SearchTask => {
+					self.view_search_ui()	
+				}
+			};
+		
+		container(content)
+			.width(Length::Fill)
+			.height(Length::Fill)
+			.center_x()
+			.center_y()
+			.into()
 	}
 }
 
@@ -393,6 +401,7 @@ impl SearchGui {
 				"Load index from an existing image text index db file",
 				tooltip::Position::Bottom
 			)
+			.gap(10)
 			.style(theme::Container::Box);
 		
 		container(
