@@ -241,11 +241,11 @@ enum SearchGuiState {
 }
 
 impl Default for SearchGuiState {
-    fn default() -> Self
-    {
-    	SearchGuiState::FindIndexDb
-        //SearchGuiState::SearchTask
-    }
+	fn default() -> Self
+	{
+		SearchGuiState::FindIndexDb
+		//SearchGuiState::SearchTask
+	}
 }
 
 // ------------------------------------------------------
@@ -294,7 +294,7 @@ impl Sandbox for SearchGui {
 			.. Self::default()
 		}
 	}
-
+	
 	fn title(&self) -> String 
 	{
 		// TODO: Include searching / operating states?
@@ -377,7 +377,7 @@ impl SearchGui {
 			.add_filter("All File Types", &["*"])  // XXX
 			.set_directory(&start_directory)
 			.pick_file();
-
+		
 		if let Some(file_path) = file_dialog_result {
 			debug!("Selected File Path = {:?}", file_path);
 			self.db_filename = file_path;
