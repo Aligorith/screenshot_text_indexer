@@ -6,6 +6,7 @@ extern crate serde_json;
 use std::collections::HashMap;
 use std::env;
 use std::fs;
+use std::path::{Path, PathBuf};
 use std::process;
 use std::time::Instant;
 
@@ -21,9 +22,11 @@ use iced::theme::{self, Theme};
 use iced::widget::{
 	self,
 	button, column, container, image, row,
-	scrollable, text, text_input,
+	scrollable, text, text_input, tooltip,
 };
 use iced::window;
+
+use log::debug;
 
 use once_cell::sync::Lazy;
 
@@ -186,11 +189,15 @@ impl SearchMatchImage {
 
 // Application State
 #[derive(Debug, Default)]
-struct SearchGuiState {
+struct SearchGui {
+	// Current Application State ------------------------
+	
+	app_state: SearchGuiState,
+	
 	// Images Text Index Database -----------------------
 	
 	// The filename of the database
-	db_filename : String,
+	db_filename : PathBuf,
 	
 	// The image index loaded from the db
 	text_index : ImagesTextIndex,
@@ -220,10 +227,36 @@ struct SearchGuiState {
 
 // ======================================================
 
+// Current Application State
+#[derive(Debug, Clone)]
+enum SearchGuiState {
+	// No index db loaded - prompt the user to select + load one
+	FindIndexDb,
+	
+	// Show a "loading" message when trying to parse an index database	
+	LoadingIndex,
+	
+	// Show the searching UI
+	SearchTask,
+}
+
+impl Default for SearchGuiState {
+    fn default() -> Self
+    {
+    	SearchGuiState::FindIndexDb
+        //SearchGuiState::SearchTask
+    }
+}
+
+// ------------------------------------------------------
+
 // Application Messages
 #[derive(Debug, Clone)]
 //#[derive(Debug, Clone, Copy)]   // XXX: `Copy` not available for String
 enum Message {
+	// Show file picker dialog to select an index to load
+	LoadExistingDbPicker,
+	
 	// Text in "search_text" box changed
 	// - Flush the search string to state...
 	SearchTextChanged(String),
@@ -245,14 +278,21 @@ enum Message {
 static SEARCH_BOX_ID: Lazy<text_input::Id> = Lazy::new(text_input::Id::unique);
 
 
-// Application / Controller
-impl Sandbox for SearchGuiState {
+// Application / Controller - Standard Framework Extension Points
+impl Sandbox for SearchGui {
 	type Message = Message;
 	
 	fn new() -> Self
 	{
 		// TODO: Work the loading into this?
-		Self::default()
+		Self {
+			// Default state...
+			app_state: SearchGuiState::FindIndexDb,
+			//app_state: SearchGuiState::LoadingIndex,
+			//app_state: SearchGuiState::SearchTask,
+			
+			.. Self::default()
+		}
 	}
 
 	fn title(&self) -> String 
@@ -271,6 +311,13 @@ impl Sandbox for SearchGuiState {
 	fn update(&mut self, message: Message)
 	{
 		match message {
+			// [SearchGuiState::FindIndexDb] .............................
+			Message::LoadExistingDbPicker => {
+				// Show file picker - If successful, trigger next steps
+				self.browse_for_index_path();
+			}
+			
+			// [SearchGuiState::SearchTask] ..............................
 			Message::SearchTextChanged(query_string) => {
 				// Copy search text
 				self.search_text = query_string.clone();
@@ -294,6 +341,93 @@ impl Sandbox for SearchGuiState {
 	}
 	
 	fn view(&self) -> Element<Message>
+	{
+		match self.app_state {
+			SearchGuiState::FindIndexDb => {
+				self.view_find_db_prompt()
+			}
+			SearchGuiState::LoadingIndex => {
+				self.view_index_loading_ui()
+			}
+			SearchGuiState::SearchTask => {
+				self.view_search_ui()	
+			}
+		}
+	}
+}
+
+
+// Own event-handler function defines for SearchGui
+impl SearchGui {
+	// Show a file browser to pick an index file
+	// Used for:  `Message::LoadExistingDbPicker` case
+	fn browse_for_index_path(&mut self)
+	{
+		let start_directory = std::env::current_dir().unwrap_or_default();
+		
+		let file_dialog_result = rfd::FileDialog::new()
+			.add_filter("All File Types", &["*"])  // XXX
+			.set_directory(&start_directory)
+			.pick_file();
+
+		if let Some(file_path) = file_dialog_result {
+			debug!("Selected File Path = {:?}", file_path);
+			self.db_filename = file_path;
+		}
+	}
+}
+
+// Own view-function defines for SearchGui
+impl SearchGui {
+	// Prompt the user to load a database (or generate one)
+	fn view_find_db_prompt(&self) -> Element<Message>
+	{
+		let prompt_text = 
+			text("Select or generate a database of indexed text-snippets to search through:");
+		
+		let find_button =
+			tooltip(
+				button("Loading Existing...")
+					//.size(14)
+					.on_press(Message::LoadExistingDbPicker),
+				"Load index from an existing image text index db file",
+				tooltip::Position::Bottom
+			)
+			.style(theme::Container::Box);
+		
+		container(
+			column![
+				prompt_text,
+				
+				row![
+					find_button,
+					//generate_button,
+				]
+			]
+			.align_items(Alignment::Center)
+		)
+		.center_y()
+		.into()
+	}
+	
+	// Loading screen to display while loading / parsing the index
+	fn view_index_loading_ui(&self) -> Element<Message>
+	{
+		container(
+			column![
+				text("Loading index database...")
+					.size(22),
+				text(format!("\"{:?}\"", self.db_filename))
+					.size(14),
+			]
+			.align_items(Alignment::Center)
+		)
+		.center_y()
+		.into()
+	}
+	
+	// Main UI for searching through the index
+	fn view_search_ui(&self) -> Element<Message>
 	{
 		// LHS: Search Panel - Query String Box
 		let search_box = text_input(
@@ -382,5 +516,5 @@ impl Sandbox for SearchGuiState {
 
 fn main() -> iced::Result
 {
-	SearchGuiState::run(Settings::default())
+	SearchGui::run(Settings::default())
 }
