@@ -351,7 +351,7 @@ impl Sandbox for SearchGui {
 					self.view_index_loading_ui()
 				}
 				SearchGuiState::SearchTask => {
-					self.view_search_ui()	
+					self.view_search_ui()
 				}
 			};
 		
@@ -395,13 +395,13 @@ impl SearchGui {
 		
 		let find_button =
 			tooltip(
-				button("Loading Existing...")
+				button("Select Index File...")
 					//.size(14)
 					.on_press(Message::LoadExistingDbPicker),
 				"Load index from an existing image text index db file",
 				tooltip::Position::Bottom
 			)
-			.gap(10)
+			.gap(2)
 			.style(theme::Container::Box);
 		
 		container(
@@ -414,6 +414,7 @@ impl SearchGui {
 				]
 			]
 			.align_items(Alignment::Center)
+			.spacing(10)
 		)
 		.center_y()
 		.into()
@@ -430,6 +431,7 @@ impl SearchGui {
 					.size(14),
 			]
 			.align_items(Alignment::Center)
+			.spacing(10)
 		)
 		.center_y()
 		.into()
