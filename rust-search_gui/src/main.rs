@@ -200,7 +200,7 @@ struct SearchGui {
 	db_filename : PathBuf,
 	
 	// The image index loaded from the db
-	text_index : ImagesTextIndex,
+	text_index : Option<ImagesTextIndex>,
 	
 	// Search Options -----------------------------------
 	
@@ -254,8 +254,18 @@ impl Default for SearchGuiState {
 #[derive(Debug, Clone)]
 //#[derive(Debug, Clone, Copy)]   // XXX: `Copy` not available for String
 enum Message {
+	// State (Index DB Loading) .........................
+	
 	// Show file picker dialog to select an index to load
 	LoadExistingDbPicker,
+	
+	// Start loading db specified in `db_filename`
+	IndexLoadingStart,
+	
+	// Index loading complete -> Switch to search mode
+	IndexLoadingComplete,
+	
+	// Search UI Events ..................................
 	
 	// Text in "search_text" box changed
 	// - Flush the search string to state...
@@ -315,6 +325,19 @@ impl Sandbox for SearchGui {
 			Message::LoadExistingDbPicker => {
 				// Show file picker - If successful, trigger next steps
 				self.browse_for_index_path();
+			}
+			
+			// [SearchGuiState::LoadingIndex] ............................
+			Message::IndexLoadingStart => {
+				// Change to "loading" state
+				self.app_state = SearchGuiState::LoadingIndex;
+				
+				// TODO: Start async task to load the data...
+			}
+			Message::IndexLoadingComplete => {
+				// Change to "Search UI" state, now that index is loaded
+				assert!(self.text_index.is_some());
+				self.app_state = SearchGuiState::SearchTask;
 			}
 			
 			// [SearchGuiState::SearchTask] ..............................
