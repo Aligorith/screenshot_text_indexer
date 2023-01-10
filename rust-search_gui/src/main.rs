@@ -11,10 +11,11 @@ use std::process;
 use std::time::Instant;
 
 use iced::{
-	Color, Command, Element, Font, Length, Sandbox,
+	Application, Color, Command, Element, Font, Length,
 	Settings, Subscription,
 };
 use iced::alignment::{self, Alignment};
+use iced::executor;
 use iced::event::{self, Event};
 use iced::keyboard;
 use iced::subscription;
@@ -289,20 +290,26 @@ static SEARCH_BOX_ID: Lazy<text_input::Id> = Lazy::new(text_input::Id::unique);
 
 
 // Application / Controller - Standard Framework Extension Points
-impl Sandbox for SearchGui {
+impl Application for SearchGui {
 	type Message = Message;
+	type Theme = Theme;
+	type Executor = executor::Default;
+	type Flags = ();
 	
-	fn new() -> Self
+	fn new(_flags: ()) -> (SearchGui, Command<Message>)
 	{
 		// TODO: Work the loading into this?
-		Self {
-			// Default state...
-			app_state: SearchGuiState::FindIndexDb,
-			//app_state: SearchGuiState::LoadingIndex,
-			//app_state: SearchGuiState::SearchTask,
-			
-			.. Self::default()
-		}
+		(
+			SearchGui {
+				// Default state...
+				app_state: SearchGuiState::FindIndexDb,
+				//app_state: SearchGuiState::LoadingIndex,
+				//app_state: SearchGuiState::SearchTask,
+				
+				.. Self::default()
+			},
+			Command::none()
+		)
 	}
 	
 	fn title(&self) -> String 
@@ -318,7 +325,7 @@ impl Sandbox for SearchGui {
 		}
 	}
 	
-	fn update(&mut self, message: Message)
+	fn update(&mut self, message: Message) -> Command<Message>
 	{
 		match message {
 			// [SearchGuiState::FindIndexDb] .............................
@@ -333,6 +340,7 @@ impl Sandbox for SearchGui {
 				self.app_state = SearchGuiState::LoadingIndex;
 				
 				// TODO: Start async task to load the data...
+					// XXX: as Command
 			}
 			Message::IndexLoadingComplete => {
 				// Change to "Search UI" state, now that index is loaded
@@ -345,9 +353,11 @@ impl Sandbox for SearchGui {
 				// Copy search text
 				self.search_text = query_string.clone();
 				// TODO: Trigger search...
+					// XXX: as Command? Or Same as TriggerSearch?
 			}
 			Message::TriggerSearch => {
 				// TODO: Launch async search
+					// XXX: as Command
 			}
 			Message::SearchResultsUpdated => {
 				// Reset current search match 
@@ -361,6 +371,15 @@ impl Sandbox for SearchGui {
 				// TODO: Need to get the index from the message?
 			}
 		}
+		
+		// Default "pending-action": Do nothing
+		return Command::none();
+	}
+	
+	fn subscription(&self) -> Subscription<Message>
+	{
+		// TODO: Are there any regular events we should be listening for?
+		Subscription::none()
 	}
 	
 	fn view(&self) -> Element<Message>
