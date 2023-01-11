@@ -5,6 +5,7 @@ extern crate serde_json;
 
 use std::collections::HashMap;
 use std::env;
+use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process;
@@ -38,7 +39,7 @@ use once_cell::sync::Lazy;
 //       TODO: De-duplicate these by splitting these defs into a shared crate?
 
 // Bounding box for each word
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 struct ImageWordBBox {
 	height: f32,
 	width: f32,
@@ -47,7 +48,7 @@ struct ImageWordBBox {
 }
 
 // Each individual "word" that was identified
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 struct ImageTextWord {
 	// Bounding box of the word
 	bounding_rect: ImageWordBBox,
@@ -58,7 +59,7 @@ struct ImageTextWord {
 
 
 // Line / Sentence Fragment found in the image
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 struct ImageTextLine {
 	// A string representing the sentence that the words in this line spell out
 	text: String,
@@ -69,7 +70,7 @@ struct ImageTextLine {
 
 
 // Root-Level entry corresponding to each image that was indexed...
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 struct ImageTextInfo {
 	// A list of lines / sentence-fragments of text found in the image
 	lines: Vec<ImageTextLine>,
@@ -86,25 +87,56 @@ type ImagesTextIndex = HashMap<String, ImageTextInfo>;
 // Image Text-Index Methods
 // TODO: Split to separate module / deduplicate with the above type defs
 
+// Error codes for reading operation
+#[derive(Clone, Debug)]
+enum IndexLoadError {
+	// File loading error
+	FileRead,
+	
+	// Json Deserialisation error
+	JsonUnpack,
+}
+
+impl fmt::Display for IndexLoadError {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
+	{
+		match *self {
+			IndexLoadError::FileRead => {
+				write!(f, "FileRead: Unable to read index database from file")
+			}
+			IndexLoadError::JsonUnpack => {
+				write!(f, "JsonUnpack: Error when trying to deserialise JSON")
+			}
+		}
+	}
+}
+
+// -------------------------
+
 // Load index from file
-fn load_index_from_file(filename: &str) -> ImagesTextIndex
+async fn load_index_from_file(filename: &PathBuf) -> Result<ImagesTextIndex, IndexLoadError>
 {
-	println!("Loading index from '{}'...", filename);
+	println!("Loading index from '{:?}'...", filename);
 	let loading_timer = Instant::now();
 	
 	// Load the given JSON file
-	let json_str = fs::read_to_string(filename).expect("Unable to read index database file");
+	let json_str =
+		fs::read_to_string(filename)
+		//.map_err(|_| LoadError::FileRead)?;
+		.expect("Unable to read index database file");
 	
 	// Try to deserialise it to a HashMap of struts
 	// TODO: Split all this loading code into a helper function
 	let text_index : ImagesTextIndex = 
-		serde_json::from_str(&json_str).expect("Could not unpack JSON");
+		serde_json::from_str(&json_str)
+		//.map_err(|_| LoadError::JsonUnpack)?;
+		.expect("Could not unpack JSON");
 	
 	let loading_duration = loading_timer.elapsed();
 	println!("Index Loaded in {:?}.  {} entries found.\n", loading_duration, text_index.len());
 	
 	// Return (move) the index to the parent
-	return text_index;
+	return Ok(text_index);
 }
 
 
@@ -264,7 +296,7 @@ enum Message {
 	IndexLoadingStart,
 	
 	// Index loading complete -> Switch to search mode
-	IndexLoadingComplete,
+	IndexLoadingComplete(Result<ImagesTextIndex, IndexLoadError>),
 	
 	// Search UI Events ..................................
 	
@@ -296,20 +328,35 @@ impl Application for SearchGui {
 	type Executor = executor::Default;
 	type Flags = ();
 	
-	fn new(_flags: ()) -> (SearchGui, Command<Message>)
+	fn new(_flags: ()) -> (Self, Command<Message>)
 	{
-		// TODO: Work the loading into this?
-		(
-			SearchGui {
-				// Default state...
-				app_state: SearchGuiState::FindIndexDb,
-				//app_state: SearchGuiState::LoadingIndex,
-				//app_state: SearchGuiState::SearchTask,
+		let args: Vec<String> = env::args().collect();
+		
+		if let Some(db_filename) = args.get(1) {
+			// Filename Provided
+			(
+				SearchGui {
+					app_state: SearchGuiState::LoadingIndex,
+					db_filename: db_filename.into(),
+					
+					..Self::default()
+				},
 				
-				.. Self::default()
-			},
-			Command::none()
-		)
+				// FIXME: How to trigger loading from here? Code below fails with temporary borrow freed
+				Command::none()
+				
+				// Command::perform(
+				// 	load_index_from_file(&PathBuf::from(db_filename)),
+				// 	Message::IndexLoadingComplete)
+			)
+		}
+		else {
+			// Default State - No index provided
+			(
+				Self::default(),
+				Command::none()
+			)
+		}
 	}
 	
 	fn title(&self) -> String 
@@ -342,10 +389,16 @@ impl Application for SearchGui {
 				// TODO: Start async task to load the data...
 					// XXX: as Command
 			}
-			Message::IndexLoadingComplete => {
+			
+			Message::IndexLoadingComplete(Ok(text_index)) => {
 				// Change to "Search UI" state, now that index is loaded
-				assert!(self.text_index.is_some());
+				self.text_index = Some(text_index);
 				self.app_state = SearchGuiState::SearchTask;
+			}
+			Message::IndexLoadingComplete(Err(err)) => {
+				// Error trying to load - go back to picker state
+				eprintln!("ERROR: {:?}", err);
+				self.app_state = SearchGuiState::FindIndexDb;
 			}
 			
 			// [SearchGuiState::SearchTask] ..............................
@@ -423,6 +476,10 @@ impl SearchGui {
 		if let Some(file_path) = file_dialog_result {
 			debug!("Selected File Path = {:?}", file_path);
 			self.db_filename = file_path;
+			
+			// Request the next action to occur
+			// XXX: Is this how to do it?
+			self.update(Message::IndexLoadingStart);
 		}
 	}
 }
@@ -439,6 +496,7 @@ impl SearchGui {
 			tooltip(
 				button("Select Index File...")
 					//.size(14)
+					.padding(10) // TODO: make standard?
 					.on_press(Message::LoadExistingDbPicker),
 				"Load index from an existing image text index db file",
 				tooltip::Position::Bottom
@@ -469,7 +527,7 @@ impl SearchGui {
 			column![
 				text("Loading index database...")
 					.size(22),
-				text(format!("\"{:?}\"", self.db_filename))
+				text(format!("{:?}", self.db_filename))
 					.size(14),
 			]
 			.align_items(Alignment::Center)
