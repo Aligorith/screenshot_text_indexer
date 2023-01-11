@@ -339,7 +339,7 @@ impl Application for SearchGui {
 					app_state: SearchGuiState::LoadingIndex,
 					db_filename: db_filename.into(),
 					
-					..Self::default()
+					.. Self::default()
 				},
 				
 				// FIXME: How to trigger loading from here? Code below fails with temporary borrow freed
@@ -357,6 +357,18 @@ impl Application for SearchGui {
 				Command::none()
 			)
 		}
+		
+		
+		// XXX: Testing
+		/*
+		(
+			SearchGui {
+				app_state: SearchGuiState::SearchTask,
+				.. Self::default()
+			},
+			Command::none()
+		)
+		*/
 	}
 	
 	fn title(&self) -> String 
@@ -588,7 +600,8 @@ impl SearchGui {
 				matches_box,
 			)
 			.width(Length::Units(300))
-			.spacing(10);
+			.spacing(10)
+			.padding(10);
 		
 		// RHS: Matching Image Panel
 		// See pokedex
@@ -601,11 +614,17 @@ impl SearchGui {
 					// TODO: Markup toolbar?
 				)
 				.width(Length::Fill)
+				.height(Length::Units(500))
 				.into()
 			}
 			None => {
 				// Placeholder
-				empty_message("Select an image match to see it here...")
+				container(
+					empty_message("Select an image match to see it here...")
+				)
+				.width(Length::Fill)
+				.height(Length::Units(600))
+				.into()
 			}
 		};
 		
