@@ -10,7 +10,7 @@ import time
 from winsdk.windows.media.ocr import OcrEngine
 from winsdk.windows.globalization import Language
 from winsdk.windows.storage import FileAccessMode, StorageFile
-from winsdk.windows.graphics.imaging import BitmapDecoder, BitmapPixelFormat
+from winsdk.windows.graphics.imaging import BitmapDecoder, BitmapPixelFormat, BitmapAlphaMode
 
 ###########################################
 # Constants
@@ -119,11 +119,39 @@ def run_ocr_on_image(fileN: str, lang='en'):
 		file = await StorageFile.get_file_from_path_async(filePath);
 		stream = await file.open_async(FileAccessMode.READ);
 		decoder = await BitmapDecoder.create_async(stream);
-		softwareBitmap = await decoder.get_software_bitmap_async();
+		
+		# NOTE: OcrEngine may reject this if it ends up decoded as a PNG
+		#       So need to be explicit here...
+		softwareBitmap = await decoder.get_software_bitmap_async(
+			BitmapPixelFormat.BGRA8,
+			BitmapAlphaMode.PREMULTIPLIED
+		)
 		
 		# TODO: Modify this part to create a dict that contains multiple language results...
 		engine = OcrEngine.try_create_from_language(Language(lang))
-		return await engine.recognize_async(softwareBitmap)
+		if engine is None:
+			#raise RuntimeError("OCR language not available: %s" % (lang))
+			
+			print("ERROR: OcrEngine '%s' not available..." % (lang))
+			return None
+		
+		try:
+			return await engine.recognize_async(softwareBitmap)
+		except Exception as err:
+			print("ERROR (%s) on '%s':" % (str(err), fileN))
+			print("  format:", softwareBitmap.bitmap_pixel_format)
+			print("  alpha:", softwareBitmap.bitmap_alpha_mode)
+			print("  size:", softwareBitmap.pixel_width, softwareBitmap.pixel_height)
+			try:
+				print("  max dimension (engine):", engine.max_image_dimension)
+				if engine.max_image_dimension < softwareBitmap.pixel_height:
+					print("   !! Image too tall for OCR!")
+			except:
+				print("  max dimension (OcrEngine):", OcrEngine.max_image_dimension)
+				if OcrEngine.max_image_dimension < softwareBitmap.pixel_height:
+					print("   !! Image too tall for OCR!")
+			print(" engine:", engine)
+			return None
 	
 	
 	# Run the helper method, which runs asynchronously...
@@ -219,7 +247,8 @@ def main():
 		# TODO: Skip processing on files already in the DB unless the hash signature changed
 		# TODO: Skip file if it cannot be found now (i.e. it was moved before the processing happened)
 		result = run_ocr_on_image(filepath)
-		db.add_result(filepath, result)
+		if result is not None:
+			db.add_result(filepath, result)
 		
 		# Increment progress counter...
 		i += 1
